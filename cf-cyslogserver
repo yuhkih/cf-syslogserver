@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to deploy a syslog server on an EC2 instance
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair for SSH access
+
+Resources:
+  SyslogServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      ImageId: ami-0c55b159cbfafe1f0  # Amazon Linux 2 (Replace with the latest AMI ID)
+      SecurityGroups:
+        - !Ref SyslogSecurityGroup
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y rsyslog
+          systemctl enable rsyslog
+          systemctl start rsyslog
+          echo '*.* @127.0.0.1:514' >> /etc/rsyslog.conf
+          systemctl restart rsyslog
+      Tags:
+        - Key: Name
+          Value: SyslogServer
+
+  SyslogSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable syslog UDP and SSH access
+      SecurityGroupIngress:
+        - IpProtocol: udp
+          FromPort: 514
+          ToPort: 514
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: SyslogSG
